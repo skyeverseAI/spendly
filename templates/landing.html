@@ -2,6 +2,49 @@
 
 {% block title %}Spendly — Track Every Rupee{% endblock %}
 
+{% block head %}
+<style>
+    .video-modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+    .video-modal-overlay.active {
+        display: flex;
+    }
+    .video-modal {
+        position: relative;
+        width: 90%;
+        max-width: 860px;
+        aspect-ratio: 16 / 9;
+        background: #000;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .video-modal iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
+    .video-modal-close {
+        position: absolute;
+        top: -2.5rem;
+        right: 0;
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 2rem;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 
 <section class="hero">
@@ -17,8 +60,8 @@
             one transaction at a time.
         </p>
         <div class="hero-actions">
-            <a href="{{ url_for('register') }}" class="btn-primary">Start tracking free</a>
-            <a href="{{ url_for('login') }}" class="btn-ghost">Sign in</a>
+            <a href="#" id="btn-how-it-works" class="btn-primary">See how it works</a>
+            <a href="{{ url_for('register') }}" class="btn-ghost">Create a Free account</a>
         </div>
     </div>
     <div class="hero-visual">
@@ -89,4 +132,41 @@
     </div>
 </section>
 
+<!-- Video modal -->
+<div class="video-modal-overlay" id="videoModalOverlay">
+    <div class="video-modal" id="videoModal">
+        <button class="video-modal-close" id="videoModalClose" aria-label="Close">&times;</button>
+        <iframe id="videoIframe" src="" allowfullscreen allow="autoplay"></iframe>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const YOUTUBE_URL = 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1';
+
+    const overlay  = document.getElementById('videoModalOverlay');
+    const modal    = document.getElementById('videoModal');
+    const iframe   = document.getElementById('videoIframe');
+    const closeBtn = document.getElementById('videoModalClose');
+    const openBtn  = document.getElementById('btn-how-it-works');
+
+    function openModal(e) {
+        e.preventDefault();
+        iframe.src = YOUTUBE_URL;
+        overlay.classList.add('active');
+    }
+
+    function closeModal() {
+        overlay.classList.remove('active');
+        iframe.src = '';
+    }
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', function (e) {
+        if (!modal.contains(e.target)) closeModal();
+    });
+</script>
 {% endblock %}
