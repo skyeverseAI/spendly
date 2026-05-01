@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from database.db import get_db, init_db, seed_db
@@ -106,7 +107,48 @@ def logout():
 
 @app.route("/profile")
 def profile():
-    return "Profile page — coming in Step 4"
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    db = get_db()
+    try:
+        user = db.execute(
+            "SELECT id, name, email, created_at FROM users WHERE id = ?",
+            (session["user_id"],)
+        ).fetchone()
+
+        if user is None:
+            session.clear()
+            return redirect(url_for("landing"))
+
+        total_spend = db.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE user_id = ?",
+            (session["user_id"],)
+        ).fetchone()[0]
+
+        category_spends = db.execute(
+            "SELECT category, SUM(amount) as total FROM expenses WHERE user_id = ?"
+            " GROUP BY category ORDER BY total DESC",
+            (session["user_id"],)
+        ).fetchall()
+
+        top_3 = db.execute(
+            "SELECT amount, category, description, date FROM expenses"
+            " WHERE user_id = ? ORDER BY amount DESC LIMIT 3",
+            (session["user_id"],)
+        ).fetchall()
+    finally:
+        db.close()
+
+    joined = datetime.strptime(user["created_at"], "%Y-%m-%d %H:%M:%S").strftime("%B %d, %Y")
+    return render_template(
+        "profile.html",
+        user=user,
+        joined=joined,
+        total_spend=total_spend,
+        category_spends=category_spends,
+        top_3=top_3,
+    )
 
 
 @app.route("/expenses/add")
