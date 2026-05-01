@@ -33,6 +33,29 @@
         <div class="profile-spend-section">
             <h2 class="profile-section-title">Spending Overview</h2>
 
+            <!-- Date filter -->
+            <form class="filter-bar" method="get" action="{{ url_for('profile') }}">
+                <div class="filter-inputs">
+                    <input class="filter-input" type="date" name="from" value="{{ date_from or '' }}">
+                    <span class="filter-sep">→</span>
+                    <input class="filter-input" type="date" name="to" value="{{ date_to or '' }}">
+                    <button class="filter-submit btn-primary" type="submit">Apply</button>
+                </div>
+                {% set all_active = ' filter-preset--active' if not is_filtered else '' %}
+                <div class="filter-presets">
+                    <button type="button" class="filter-preset{{ all_active }}" data-preset="all">All Time</button>
+                    <button type="button" class="filter-preset" data-preset="month">This Month</button>
+                    <button type="button" class="filter-preset" data-preset="30d">Last 30 Days</button>
+                </div>
+            </form>
+
+            {% if is_filtered %}
+            <div class="filter-badge">
+                <span>{{ date_from }} → {{ date_to }}</span>
+                <a href="{{ url_for('profile') }}" class="filter-clear">&times; Clear</a>
+            </div>
+            {% endif %}
+
             <!-- Total spend stat -->
             <div class="profile-stat-card">
                 <span class="profile-stat-label">Total spent</span>
@@ -127,4 +150,35 @@
 }());
 </script>
 {% endif %}
+<script>
+(function () {
+    var form      = document.querySelector('.filter-bar');
+    var fromInput = form.querySelector('input[name="from"]');
+    var toInput   = form.querySelector('input[name="to"]');
+
+    function pad(n) { return n < 10 ? '0' + n : String(n); }
+    function fmt(d) {
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    }
+
+    document.querySelectorAll('.filter-preset').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var today = new Date();
+            if (btn.dataset.preset === 'all') {
+                fromInput.value = '';
+                toInput.value   = '';
+            } else if (btn.dataset.preset === 'month') {
+                fromInput.value = fmt(new Date(today.getFullYear(), today.getMonth(), 1));
+                toInput.value   = fmt(today);
+            } else if (btn.dataset.preset === '30d') {
+                var start = new Date(today);
+                start.setDate(today.getDate() - 29);
+                fromInput.value = fmt(start);
+                toInput.value   = fmt(today);
+            }
+            form.submit();
+        });
+    });
+}());
+</script>
 {% endblock %}
