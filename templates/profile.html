@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile — Spendly{% endblock %}
+
+{% block content %}
+
+<section class="profile-section">
+    <div class="profile-container">
+
+        <!-- Profile header -->
+        <div class="profile-avatar">
+            {{ user["name"][0].upper() }}
+        </div>
+        <h1 class="profile-name">{{ user["name"] }}</h1>
+        <p class="profile-email">{{ user["email"] }}</p>
+
+        <div class="profile-card">
+            <div class="profile-row">
+                <span class="profile-label">Full name</span>
+                <span class="profile-value">{{ user["name"] }}</span>
+            </div>
+            <div class="profile-row">
+                <span class="profile-label">Email address</span>
+                <span class="profile-value">{{ user["email"] }}</span>
+            </div>
+            <div class="profile-row">
+                <span class="profile-label">Member since</span>
+                <span class="profile-value">{{ joined }}</span>
+            </div>
+        </div>
+
+        <!-- Spending overview -->
+        <div class="profile-spend-section">
+            <h2 class="profile-section-title">Spending Overview</h2>
+
+            <!-- Total spend stat -->
+            <div class="profile-stat-card">
+                <span class="profile-stat-label">Total spent</span>
+                <span class="profile-stat-value">₹{{ "%.2f"|format(total_spend) }}</span>
+            </div>
+
+            <!-- Chart + categories -->
+            <div class="profile-chart-block">
+                <div class="profile-chart-wrap">
+                    {% if category_spends %}
+                        <canvas id="categoryChart"></canvas>
+                    {% else %}
+                        <p class="profile-empty">No expenses yet.</p>
+                    {% endif %}
+                </div>
+                <ul class="profile-legend">
+                    {% for row in category_spends %}
+                    <li class="profile-legend-item">
+                        <span class="profile-legend-dot" data-index="{{ loop.index0 }}"></span>
+                        <span class="profile-legend-cat">{{ row["category"] }}</span>
+                        <span class="profile-legend-amt">₹{{ "%.2f"|format(row["total"]) }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- Top 3 spends -->
+            {% if top_3 %}
+            <div class="profile-top3">
+                <h3 class="profile-top3-title">Top 3 Spends</h3>
+                {% for row in top_3 %}
+                <div class="profile-top3-row">
+                    <span class="profile-top3-rank">{{ loop.index }}</span>
+                    <div class="profile-top3-info">
+                        <span class="profile-top3-desc">{{ row["description"] or row["category"] }}</span>
+                        <span class="profile-top3-meta">{{ row["category"] }} · {{ row["date"] }}</span>
+                    </div>
+                    <span class="profile-top3-amt">₹{{ "%.2f"|format(row["amount"]) }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <a href="{{ url_for('logout') }}" class="btn-ghost profile-signout">Sign out</a>
+
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+{% if category_spends %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    var COLORS = ["#1a472a","#c17f24","#5b7fa6","#8b5e83","#c0392b","#2e86ab","#e67e22","#27ae60"];
+    var labels  = {{ category_spends | map(attribute="category") | list | tojson }};
+    var amounts = {{ category_spends | map(attribute="total")    | list | tojson }};
+
+    var dots = document.querySelectorAll(".profile-legend-dot");
+    dots.forEach(function(dot) {
+        dot.style.background = COLORS[parseInt(dot.dataset.index, 10) % COLORS.length];
+    });
+
+    new Chart(document.getElementById("categoryChart"), {
+        type: "doughnut",
+        data: {
+            labels: labels,
+            datasets: [{
+                data: amounts,
+                backgroundColor: COLORS.slice(0, labels.length),
+                borderWidth: 2,
+                borderColor: "#ffffff",
+                hoverOffset: 6
+            }]
+        },
+        options: {
+            cutout: "65%",
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            return " ₹" + ctx.parsed.toFixed(2);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}());
+</script>
+{% endif %}
+{% endblock %}
