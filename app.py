@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, session
@@ -5,11 +6,29 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from database.db import get_db, init_db, seed_db
 
 app = Flask(__name__)
-app.secret_key = "dev-secret-change-me"  # replace with env var before production
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 
 with app.app_context():
     init_db()
     seed_db()
+
+
+# ------------------------------------------------------------------ #
+# Helpers                                                             #
+# ------------------------------------------------------------------ #
+
+def _parse_date_filter(args):
+    raw_from = args.get("from", "").strip()
+    raw_to   = args.get("to",   "").strip()
+    if raw_from and raw_to:
+        try:
+            dt_from = datetime.strptime(raw_from, "%Y-%m-%d")
+            dt_to   = datetime.strptime(raw_to,   "%Y-%m-%d")
+            if dt_from <= dt_to:
+                return raw_from, raw_to, True
+        except ValueError:
+            pass
+    return None, None, False
 
 
 # ------------------------------------------------------------------ #
@@ -110,6 +129,15 @@ def profile():
     if "user_id" not in session:
         return redirect(url_for("login"))
 
+    date_from, date_to, is_filtered = _parse_date_filter(request.args)
+
+    if is_filtered:
+        filter_clause  = " AND date BETWEEN ? AND ?"
+        expense_params = (session["user_id"], date_from, date_to)
+    else:
+        filter_clause  = ""
+        expense_params = (session["user_id"],)
+
     db = get_db()
     try:
         user = db.execute(
@@ -122,20 +150,23 @@ def profile():
             return redirect(url_for("landing"))
 
         total_spend = db.execute(
-            "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE user_id = ?",
-            (session["user_id"],)
+            "SELECT COALESCE(SUM(amount), 0) FROM expenses"
+            " WHERE user_id = ?" + filter_clause,
+            expense_params
         ).fetchone()[0]
 
         category_spends = db.execute(
-            "SELECT category, SUM(amount) as total FROM expenses WHERE user_id = ?"
+            "SELECT category, SUM(amount) as total FROM expenses"
+            " WHERE user_id = ?" + filter_clause +
             " GROUP BY category ORDER BY total DESC",
-            (session["user_id"],)
+            expense_params
         ).fetchall()
 
         top_3 = db.execute(
             "SELECT amount, category, description, date FROM expenses"
-            " WHERE user_id = ? ORDER BY amount DESC LIMIT 3",
-            (session["user_id"],)
+            " WHERE user_id = ?" + filter_clause +
+            " ORDER BY amount DESC LIMIT 3",
+            expense_params
         ).fetchall()
     finally:
         db.close()
@@ -148,6 +179,9 @@ def profile():
         total_spend=total_spend,
         category_spends=category_spends,
         top_3=top_3,
+        date_from=date_from,
+        date_to=date_to,
+        is_filtered=is_filtered,
     )
 
 
@@ -167,4 +201,4 @@ def delete_expense(id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    app.run(debug=os.environ.get("FLASK_DEBUG", "0") == "1", port=5001)
